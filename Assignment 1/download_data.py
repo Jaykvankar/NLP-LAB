@@ -1,34 +1,3 @@
-"""
-Task 1a: download raw text.
-
-    Dataset 1: ai4bharat/IndicCorpV2   (language = Gujarati)
-    Dataset 2: oscar-corpus/OSCAR-2301 (language = Gujarati)
-
-Run this on a machine with real internet access (your laptop / Colab /
-Kaggle) -- both datasets are large, so we STREAM them instead of doing a
-full download, and cap the number of documents pulled (`N_DOCS`) so a
-"complete data extraction" doesn't take hours or blow your disk. Bump
-N_DOCS up if your assignment wants the truly full corpus.
-
-Requires:
-    pip install datasets huggingface_hub
-
-IMPORTANT -- the two datasets use DIFFERENT language-code conventions:
-    - IndicCorpV2 splits are named "<ISO639-3>_<Script>", e.g. "guj_Gujr"
-      (confirmed from the Data Studio view: guj_Gujr, asm_Beng, ben_Beng...).
-      It has NO config/subset -- you select the language via `split=`.
-    - OSCAR-2301 configs use plain ISO639-1 codes, e.g. "gu" for Gujarati.
-      Verify this on https://huggingface.co/datasets/oscar-corpus/OSCAR-2301
-      (Data Studio / "Subsets and Splits") the same way you did for
-      IndicCorpV2 before running -- OSCAR's list can differ.
-
-OSCAR-2301 is a *gated* dataset -- you must:
-    1. Log in at https://huggingface.co/datasets/oscar-corpus/OSCAR-2301
-       and accept the terms once.
-    2. Run `huggingface-cli login` (or set env var HF_TOKEN) before
-       running this script.
-"""
-
 import os
 from datasets import load_dataset
 
@@ -67,12 +36,12 @@ def dump_streaming_dataset(dataset_name, out_path, n_docs, split="train",
 
 if __name__ == "__main__":
     # --- IndicCorpV2 --- (no config; language selected via split name)
-    # dump_streaming_dataset(
-    #     dataset_name="ai4bharat/IndicCorpV2",
-    #     split=INDICCORP_SPLIT,
-    #     out_path=os.path.join(RAW_DIR, "indiccorp_raw.txt"),
-    #     n_docs=N_DOCS,
-    # )
+    dump_streaming_dataset(
+        dataset_name="ai4bharat/IndicCorpV2",
+        split=INDICCORP_SPLIT,
+        out_path=os.path.join(RAW_DIR, "indiccorp_raw.txt"),
+        n_docs=N_DOCS,
+    )
 
     # --- OSCAR-2301 --- (language selected via config, split is "train")
     dump_streaming_dataset(
