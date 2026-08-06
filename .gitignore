@@ -1,0 +1,5 @@
+raw_data/
+output/*.parquet
+output/*.txt
+__pycache__/
+*.pyc
