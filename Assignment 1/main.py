@@ -1,12 +1,3 @@
-"""
-NLP Assignment 1 – Custom Preprocessing Pipeline (AI357)
-
-Course: AI357 – Natural Language Processing
-Institute: SVNIT Surat
-
-Outputs untagged space-separated tokens and exports stats to a JSON file.
-"""
-
 import json
 import os
 import re
