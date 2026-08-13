@@ -1,11 +1,24 @@
 import json
 import os
 import re
+import glob
 from typing import List
 import pandas as pd
 
 
-# 1. REGEX PATTERNS & TAG MAPPINGS
+# =====================================
+# INPUT / OUTPUT FOLDERS
+# =====================================
+
+INPUT_FOLDER = "raw_data"
+OUTPUT_FOLDER = "tokenized_output"
+
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+
+# =====================================
+# REGEX PATTERNS & TAG MAPPINGS
+# =====================================
 
 # URLs, emails, dates, and numbers
 URL_PATTERN = r'(?:https?://|www\.)\S+'
@@ -66,10 +79,15 @@ GROUP_TO_TAG = {
 }
 
 
-# 2. TOKENIZATION FUNCTIONS
+# =====================================
+# TOKENIZATION FUNCTIONS
+# =====================================
 
 def sentence_tokenize(text: str) -> List[str]:
     """Splits text into sentences using masking."""
+
+    text = text.replace("\n", " ")
+
     protected_spans = []
 
     def _mask(match: re.Match) -> str:
@@ -77,6 +95,7 @@ def sentence_tokenize(text: str) -> List[str]:
         return f"\uE000{len(protected_spans) - 1}\uE001"
 
     masked_text = PROTECT_REGEX.sub(_mask, text)
+
     raw_sentences = SENTENCE_BOUNDARY_REGEX.split(masked_text)
 
     def _unmask(sentence: str) -> str:
@@ -87,118 +106,214 @@ def sentence_tokenize(text: str) -> List[str]:
         )
 
     sentences = [_unmask(s).strip() for s in raw_sentences]
+
     return [s for s in sentences if s]
 
 
 def tagged_word_tokenize(sentence: str) -> List[str]:
     """Extracts tokens and returns formatted token/TAG strings."""
+
     tagged_tokens = []
+
     for match in TOKEN_REGEX.finditer(sentence):
         token_str = match.group()
         tag = GROUP_TO_TAG[match.lastgroup]
         tagged_tokens.append(f"{token_str}/{tag}")
+
     return tagged_tokens
 
 
-# 3. PIPELINE & STATISTICS
+# =====================================
+# STATISTICS VARIABLES
+# =====================================
 
-def compute_corpus_stats(sentences: List[str], tokens: List[str], total_chars: int, json_path: str):
-    """Calculates corpus statistics and saves them to a JSON file."""
-    total_sentences = len(sentences)
-    total_words = len(tokens)
-    unique_tokens = len(set(tokens))
+total_sentences = 0
+total_words = 0
+total_characters = 0
 
-    avg_sentence_len = total_words / total_sentences if total_sentences > 0 else 0
-    avg_word_len = sum(len(w.rsplit('/', 1)[0]) for w in tokens) / total_words if total_words > 0 else 0
-    ttr = unique_tokens / total_words if total_words > 0 else 0
+unique_tokens = set()
 
-    # Build statistics dictionary
-    stats = {
-        "total_sentences": total_sentences,
-        "total_words": total_words,
-        "total_characters": total_chars,
-        "avg_sentence_length": round(avg_sentence_len, 2),
-        "avg_word_length": round(avg_word_len, 2),
-        "type_token_ratio": round(ttr, 6),
-    }
-
-    # Save statistics as JSON file
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(stats, f, indent=4)
-
-    print("\nCORPUS STATISTICS ")
-    print(f"Total Sentences:           {total_sentences:,}")
-    print(f"Total Words (Tokens):      {total_words:,}")
-    print(f"Total Characters:          {total_chars:,}")
-    print(f"Average Sentence Length:   {avg_sentence_len:.2f} words/sentence")
-    print(f"Average Word Length:       {avg_word_len:.2f} characters/word")
-    print(f"Type/Token Ratio (TTR):     {ttr:.6f}")
-    print("\n")
-    print(f"Saved stats JSON to:          {json_path}")
+tokenized_sentences = []
+all_tokens = []
 
 
-def process_corpus(input_filepath: str, output_basepath: str):
-    """Processes input text file and exports .txt, .parquet, and .json outputs."""
-    if not os.path.exists(input_filepath):
-        print(f"Error: Input file '{input_filepath}' not found.")
-        return
+# =====================================
+# PROCESS FILES
+# =====================================
 
-    print(f"Processing corpus from: {input_filepath}...")
+files = glob.glob(os.path.join(INPUT_FOLDER, "*.txt"))
 
-    with open(input_filepath, "r", encoding="utf-8") as f:
-        raw_paragraphs = [line.strip() for line in f if line.strip()]
+if len(files) == 0:
+    print("No txt files found inside raw_data folder.")
+    exit()
 
-    tokenized_sentences = []
-    total_raw_characters = 0
-    all_tokens = []
 
-    for paragraph in raw_paragraphs:
-        total_raw_characters += len(paragraph)
-        
-        # Tokenize paragraph into sentences
-        sentences = sentence_tokenize(paragraph)
-        
-        for sentence in sentences:
-            # Tokenize sentence into tagged tokens
-            tokens = tagged_word_tokenize(sentence)
-            if tokens:
-                all_tokens.extend(tokens)
-                space_separated_sentence = " ".join(tokens)
-                tokenized_sentences.append(space_separated_sentence)
+for file in files:
 
-    # Ensure output folder exists
-    output_dir = os.path.dirname(output_basepath)
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-    
-    txt_path = f"{output_basepath}.txt"
-    parquet_path = f"{output_basepath}.parquet"
-    json_path = f"{output_basepath}_stats.json"
+    print(f"Processing: {file}")
 
-    # Save tagged txt file
-    with open(txt_path, "w", encoding="utf-8") as f:
-        for sentence in tokenized_sentences:
-            f.write(sentence + "\n")
-    print(f"Saved tagged text file to:    {txt_path}")
+    with open(file, "r", encoding="utf-8", errors="ignore") as f:
+        text = f.read()
 
-    # Save tagged parquet file
-    df = pd.DataFrame({"tokenized_sentence": tokenized_sentences})
-    df.to_parquet(parquet_path, engine="pyarrow", compression="snappy")
-    print(f"Saved tagged parquet file to: {parquet_path}")
+    total_raw_characters = len(text)
 
-    # Compute and save statistics in JSON format
-    compute_corpus_stats(
-        sentences=tokenized_sentences,
-        tokens=all_tokens,
-        total_chars=total_raw_characters,
-        json_path=json_path
+    sentences = sentence_tokenize(text)
+
+    output_file = os.path.join(
+        OUTPUT_FOLDER,
+        os.path.basename(file)
     )
 
+    # Save tokenized text file
+    with open(output_file, "w", encoding="utf-8") as out:
 
-# 4. EXECUTION
+        for sentence in sentences:
 
-if __name__ == "__main__":
-    INPUT_FILE = "raw_data/indiccorp_raw.txt"
-    OUTPUT_BASE = "output/indiccorp_tokenized"
+            tokens = tagged_word_tokenize(sentence)
 
-    process_corpus(INPUT_FILE, OUTPUT_BASE)
+            if len(tokens) == 0:
+                continue
+
+            total_sentences += 1
+            total_words += len(tokens)
+
+            for token in tokens:
+                token_without_tag = token.rsplit("/", 1)[0]
+
+                total_characters += len(token_without_tag)
+                unique_tokens.add(token_without_tag)
+                all_tokens.append(token)
+
+            tokenized_sentence = " ".join(tokens)
+
+            tokenized_sentences.append(tokenized_sentence)
+
+            out.write(tokenized_sentence)
+            out.write("\n")
+
+    print(f"Saved tokenized file: {output_file}")
+
+
+# =====================================
+# CORPUS STATISTICS
+# =====================================
+
+if total_sentences > 0:
+    avg_sentence_length = total_words / total_sentences
+else:
+    avg_sentence_length = 0
+
+if total_words > 0:
+    avg_word_length = total_characters / total_words
+else:
+    avg_word_length = 0
+
+if total_words > 0:
+    ttr = len(unique_tokens) / total_words
+else:
+    ttr = 0
+
+
+# =====================================
+# PRINT RESULTS
+# =====================================
+
+print("=" * 45)
+print("Corpus Statistics")
+print("=" * 45)
+
+print("Total Sentences :", total_sentences)
+print("Total Words     :", total_words)
+print("Total Characters:", total_characters)
+print("Average Sentence Length :", round(avg_sentence_length, 2))
+print("Average Word Length     :", round(avg_word_length, 2))
+print("Unique Tokens :", len(unique_tokens))
+print("Type Token Ratio (TTR):", round(ttr, 4))
+
+
+# =====================================
+# SAVE STATISTICS
+# =====================================
+
+stats_file = os.path.join(
+    OUTPUT_FOLDER,
+    "corpus_statistics.txt"
+)
+
+with open(stats_file, "w", encoding="utf-8") as f:
+
+    f.write("Corpus Statistics\n")
+    f.write("=" * 30 + "\n\n")
+
+    f.write(f"Total Sentences : {total_sentences}\n")
+    f.write(f"Total Words : {total_words}\n")
+    f.write(f"Total Characters : {total_characters}\n")
+    f.write(f"Average Sentence Length : {avg_sentence_length:.2f}\n")
+    f.write(f"Average Word Length : {avg_word_length:.2f}\n")
+    f.write(f"Unique Tokens : {len(unique_tokens)}\n")
+    f.write(f"Type Token Ratio (TTR) : {ttr:.4f}\n")
+
+print("\nTokenized files saved inside:", OUTPUT_FOLDER)
+print("Statistics saved as corpus_statistics.txt")
+
+
+# =====================================
+# SAVE PARQUET FILE
+# =====================================
+
+parquet_file = os.path.join(
+    OUTPUT_FOLDER,
+    "tokenized_corpus.parquet"
+)
+
+df = pd.DataFrame({
+    "tokenized_sentence": tokenized_sentences
+})
+
+df.to_parquet(
+    parquet_file,
+    engine="pyarrow",
+    compression="snappy"
+)
+
+print("Parquet file saved as:", parquet_file)
+
+
+# =====================================
+# SAVE JSON STATISTICS
+# =====================================
+
+json_file = os.path.join(
+    OUTPUT_FOLDER,
+    "corpus_statistics.json"
+)
+
+stats = {
+    "total_sentences": total_sentences,
+    "total_words": total_words,
+    "total_characters": total_characters,
+    "avg_sentence_length": round(avg_sentence_length, 2),
+    "avg_word_length": round(avg_word_length, 2),
+    "unique_tokens": len(unique_tokens),
+    "type_token_ratio": round(ttr, 6)
+}
+
+with open(json_file, "w", encoding="utf-8") as f:
+    json.dump(stats, f, indent=4, ensure_ascii=False)
+
+print("JSON statistics saved as:", json_file)
+
+
+# =====================================
+# SHOW SAMPLE TOKENS
+# =====================================
+
+print("\nSample Tokens:\n")
+
+with open(files[0], "r", encoding="utf-8", errors="ignore") as f:
+    sample = f.read()
+
+sample_sentences = sentence_tokenize(sample)
+
+for sentence in sample_sentences[:5]:
+    print(tagged_word_tokenize(sentence))
