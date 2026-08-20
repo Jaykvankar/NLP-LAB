@@ -28,11 +28,6 @@ GENERAL_INDIC_PATTERN = r'[\u0980-\u0D7F]+'
 INDIC_RANGES = r'\u0900-\u0963\u0966-\u097F\u0A80-\u0AFF\u0980-\u0D7F'
 PUNCT_PATTERN = r'[^\sA-Za-z0-9' + INDIC_RANGES + r']'
 
-# Masking pattern for internal dots
-PROTECT_REGEX = re.compile(
-    f'{URL_PATTERN}|{EMAIL_PATTERN}|{DATE_PATTERN}|{NUMBER_PATTERN}|{ABBREVIATIONS}'
-)
-
 # Sentence boundaries
 SENTENCE_BOUNDARY_REGEX = re.compile(
     rf'(?<=[.!?\u0964\u0965])["\')\]]?\s+(?=[A-Z"\'' + INDIC_RANGES + r']|$)'
@@ -45,6 +40,7 @@ TOKEN_REGEX = re.compile(
     |{EMAIL_PATTERN}
     |{DATE_PATTERN}
     |{NUMBER_PATTERN}
+    |{ABBREVIATIONS}
     |{LATIN_WORD_PATTERN}
     |{DEVANAGARI_WORD_PATTERN}
     |{GUJARATI_WORD_PATTERN}
@@ -60,24 +56,9 @@ TOKEN_REGEX = re.compile(
 # =============================================================================
 
 def sentence_tokenize(text: str) -> List[str]:
-    """Splits text into sentences using masking."""
-    protected_spans = []
-
-    def _mask(match: re.Match) -> str:
-        protected_spans.append(match.group(0))
-        return f"\uE000{len(protected_spans) - 1}\uE001"
-
-    masked_text = PROTECT_REGEX.sub(_mask, text)
-    raw_sentences = SENTENCE_BOUNDARY_REGEX.split(masked_text)
-
-    def _unmask(sentence: str) -> str:
-        return re.sub(
-            r'\uE000(\d+)\uE001',
-            lambda m: protected_spans[int(m.group(1))],
-            sentence,
-        )
-
-    sentences = [_unmask(s).strip() for s in raw_sentences]
+    """Splits text into sentences directly."""
+    raw_sentences = SENTENCE_BOUNDARY_REGEX.split(text)
+    sentences = [s.strip() for s in raw_sentences]
     return [s for s in sentences if s]
 
 
@@ -100,7 +81,6 @@ def compute_corpus_stats(sentences: List[str], tokens: List[str], total_chars: i
     avg_word_len = sum(len(w) for w in tokens) / total_words if total_words > 0 else 0
     ttr = unique_tokens / total_words if total_words > 0 else 0
 
-    # Build statistics dictionary
     stats = {
         "total_sentences": total_sentences,
         "total_words": total_words,
@@ -110,7 +90,6 @@ def compute_corpus_stats(sentences: List[str], tokens: List[str], total_chars: i
         "type_token_ratio": round(ttr, 6),
     }
 
-    # Save statistics as JSON file
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(stats, f, indent=4)
 
@@ -142,39 +121,33 @@ def process_corpus(input_filepath: str, output_basepath: str):
 
     for paragraph in raw_paragraphs:
         total_raw_characters += len(paragraph)
-        
-        # Tokenize paragraph into sentences
+
         sentences = sentence_tokenize(paragraph)
-        
+
         for sentence in sentences:
-            # Tokenize sentence into raw tokens
             tokens = word_tokenize(sentence)
             if tokens:
                 all_tokens.extend(tokens)
                 space_separated_sentence = " ".join(tokens)
                 tokenized_sentences.append(space_separated_sentence)
 
-    # Ensure output folder exists
     output_dir = os.path.dirname(output_basepath)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
-    
+
     txt_path = f"{output_basepath}.txt"
     parquet_path = f"{output_basepath}.parquet"
     json_path = f"{output_basepath}_stats.json"
 
-    # Save text file (1 space-delimited sentence per line)
     with open(txt_path, "w", encoding="utf-8") as f:
         for sentence in tokenized_sentences:
             f.write(sentence + "\n")
     print(f"Saved text file to:          {txt_path}")
 
-    # Save parquet file
     df = pd.DataFrame({"tokenized_sentence": tokenized_sentences})
     df.to_parquet(parquet_path, engine="pyarrow", compression="snappy")
     print(f"Saved parquet file to:       {parquet_path}")
 
-    # Compute and save statistics in JSON format
     compute_corpus_stats(
         sentences=tokenized_sentences,
         tokens=all_tokens,
