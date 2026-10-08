@@ -1,0 +1,17 @@
+N-GRAM MODEL RESULTS: katz_backoff_results.json
+Smoothing: Katz Backoff
+formula: P(w|h) = C*(h,w)/C(h) if seen; otherwise alpha(h) * P(w|suffix(h))
+total_sentences: 1000000
+required_sentences: 1000000
+requirement_met: True
+shortfall: 0
+training_sentences: 998000
+development_sentences: 1000
+test_sentences: 1000
+prediction_vocabulary_size: 562516
+
+MODEL PERPLEXITY SUMMARY
+- Unigram: dev=3618.974688677656, test=3142.4900852725737
+- Bigram: dev=580.6048564383391, test=517.6380858199382
+- Trigram: dev=500.86713432725526, test=447.9484329396407
+- Quadrigram: dev=520.9923646009514, test=466.28743293270077

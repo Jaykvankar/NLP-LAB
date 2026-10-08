@@ -1,0 +1,19 @@
+N-GRAM MODEL RESULTS: kneser_ney_results.json
+Smoothing: Kneser-Ney
+discount: 0.75
+unigram_uniform_weight: 1e-08
+formula: P(w|h) = max(C(h,w)-D,0)/C(h) + D*N_1+(h,*)/C(h) * P_lower(w|suffix(h))
+total_sentences: 1000000
+required_sentences: 1000000
+requirement_met: True
+shortfall: 0
+training_sentences: 998000
+development_sentences: 1000
+test_sentences: 1000
+prediction_vocabulary_size: 562516
+
+MODEL PERPLEXITY SUMMARY
+- Unigram: dev=5381.832953681072, test=4629.492923027398
+- Bigram: dev=830.1588354537246, test=738.6443888255243
+- Trigram: dev=699.6974369734253, test=624.5915628016479
+- Quadrigram: dev=712.1107963203302, test=638.7768076916849

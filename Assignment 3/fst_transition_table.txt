@@ -1,0 +1,13 @@
+NOTEBOOK FST - CONCEPTUAL TRANSITION TABLE
+State | Input | Output | Next State
+q0 | a-z | same | q1
+q1 | s | same | q_es
+q1 | z | same | q_es
+q1 | x | same | q_es
+q1 | ch | same | q_es
+q1 | sh | same | q_es
+q1 | consonant+y | y->i | q_y
+q1 | other | same | q_s
+q_es | end | epsilon+es | qf
+q_y | end | epsilon+es | qf
+q_s | end | epsilon+s | qf

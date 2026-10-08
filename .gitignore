@@ -1,6 +1,23 @@
-raw_data/
+# Python
 __pycache__/
 *.pyc
+
+# Raw / heavy data (regenerate locally, don't push)
+raw_data/
+*.parquet
+*.pkl
+*.zip
 *.pdf
-output/
+
+# Results we don't push (keep only small .txt outputs)
 *.json
+
+# Images / graphviz (regenerate locally, don't push)
+*.png
+*.gv
+*.gv.png
+
+# Huge generated .txt files (too large for GitHub, regenerate locally)
+Assignment 1/output/indiccorp_tokenized.txt
+Assignment 1/output/extension_staging/
+Assignment 4/output/train.txt

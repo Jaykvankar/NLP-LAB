@@ -1,0 +1,17 @@
+N-GRAM MODEL RESULTS: good_turing_results.json
+Smoothing: Good-Turing
+formula: r* = (r + 1) * N_(r+1) / N_r; unseen mass = N_1 / N; normalize within each context
+total_sentences: 1000000
+required_sentences: 1000000
+requirement_met: True
+shortfall: 0
+training_sentences: 998000
+development_sentences: 1000
+test_sentences: 1000
+prediction_vocabulary_size: 562516
+
+MODEL PERPLEXITY SUMMARY
+- Unigram: dev=3618.974688677656, test=3142.4900852725737
+- Bigram: dev=2025.5392650055687, test=1805.3066374611274
+- Trigram: dev=337824.4120520175, test=260942.5785718532
+- Quadrigram: dev=2412430.983969278, test=2886204.1555879563

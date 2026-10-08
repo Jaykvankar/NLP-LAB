@@ -1,0 +1,17 @@
+N-GRAM MODEL RESULTS: stupid_backoff_results.json
+Smoothing: Stupid Backoff
+formula: S(w|h) = C(h,w)/C(h) if seen; otherwise alpha * S(w|suffix(h))
+total_sentences: 1000000
+required_sentences: 1000000
+requirement_met: True
+shortfall: 0
+training_sentences: 998000
+development_sentences: 1000
+test_sentences: 1000
+prediction_vocabulary_size: 562516
+
+MODEL PERPLEXITY SUMMARY
+- Unigram: dev=N/A, test=N/A
+- Bigram: dev=N/A, test=N/A
+- Trigram: dev=N/A, test=N/A
+- Quadrigram: dev=N/A, test=N/A

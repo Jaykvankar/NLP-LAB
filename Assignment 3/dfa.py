@@ -1,49 +1,46 @@
-from automathon import DFA
-import os
+"""Question 1: accept one or more lowercase English letters."""
+from string import ascii_lowercase
 
-# Lowercase letters
-letters = set("abcdefghijklmnopqrstuvwxyz")
 
-# States
-states = {"q0", "q1"}
+def dfa(word):
+    state = "start"
+    for letter in word:
+        if state == "reject" or letter not in ascii_lowercase:
+            state = "reject"
+        else:
+            state = "accept"
+    return "Accepted" if state == "accept" else "Not Accepted"
 
-# Transitions
-transitions = {
-    "q0": {letter: "q1" for letter in letters},
-    "q1": {letter: "q1" for letter in letters}
-}
 
-# Create DFA
-dfa = DFA(
-    states,
-    letters,
-    transitions,
-    "q0",
-    {"q1"}
-)
+def generate_diagram():
+    """Use the installed Graphviz program to render the DFA."""
+    from pathlib import Path
+    import subprocess
 
-# List of test words from the image
-test_words = [
-    # Accepted examples
-    "cat", "dog", "a", "zebra",
-    # Not Accepted examples
-    "dog1", "1dog", "DogHouse", "Dog_house", " cats"
-]
+    filename = Path(__file__).resolve().with_name("english_dfa.gv")
+    filename.write_text('''digraph DFA {
+        rankdir=LR;
+        node [shape=circle];
+        entry [shape=point];
+        accept [shape=doublecircle];
+        entry -> start;
+        start -> accept [label="a-z"];
+        accept -> accept [label="a-z"];
+        start -> reject [label="other"];
+        accept -> reject [label="other"];
+        reject -> reject [label="any character"];
+    }''', encoding="utf-8")
+    try:
+        subprocess.run(["dot", "-Tpng", str(filename), "-o", str(filename) + ".png"], check=True)
+        print(f"DFA image: {filename}.png")
+    except FileNotFoundError:
+        print(f"Install Graphviz and add dot to PATH to render {filename.name}.")
 
-# Run each test word through the DFA
-for word in test_words:
-    if dfa.accept(word):
-        print(f"'{word}': Accepted")
-    else:
-        print(f"'{word}': Not Accepted")
 
-# Create large DFA image
-dfa.view(
-    "english_dfa",
-    node_attr={"fontsize": "30"},
-    edge_attr={"fontsize": "25"}
-)
+if __name__ == "__main__":
+    examples = ["cat", "dog", "a", "zebra", "dog1", "1dog",
+                "DogHouse", "Dog_house", " cats", ""]
+    for word in examples:
+        print(f"{word!r} -> {dfa(word)}")
 
-# Delete the .gv file
-if os.path.exists("english_dfa.gv"):
-    os.remove("english_dfa.gv")
+    generate_diagram()

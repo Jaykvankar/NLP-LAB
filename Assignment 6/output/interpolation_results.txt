@@ -1,0 +1,16 @@
+N-GRAM MODEL RESULTS: interpolation_results.json
+Smoothing: Interpolated
+formula: P(w|h) = sum(lambda_i * P_i(w|h)), including uniform P_0(w) = 1/V
+total_sentences: 1000000
+required_sentences: 1000000
+requirement_met: True
+shortfall: 0
+training_sentences: 998000
+development_sentences: 1000
+test_sentences: 1000
+prediction_vocabulary_size: 562516
+
+MODEL PERPLEXITY SUMMARY
+- Bigram: dev=745.2910691977754, test=662.697245326424
+- Trigram: dev=640.4970846693051, test=567.0818213673372
+- Quadrigram: dev=634.3348968047325, test=561.6387286080275

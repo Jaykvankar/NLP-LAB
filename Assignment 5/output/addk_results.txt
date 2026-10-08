@@ -1,0 +1,18 @@
+N-GRAM MODEL RESULTS: addk_results.json
+Smoothing: Add-K
+k: 0.3
+formula: (C(context, word) + k) / (C(context) + k * V)
+total_sentences: 1000000
+required_sentences: 1000000
+requirement_met: True
+shortfall: 0
+training_sentences: 998000
+development_sentences: 1000
+test_sentences: 1000
+prediction_vocabulary_size: 562516
+
+MODEL PERPLEXITY SUMMARY
+- Unigram: dev=4138.288828231877, test=3584.9718964727754
+- Bigram: dev=7897.357449195656, test=6892.222616503479
+- Trigram: dev=68772.61618551055, test=62174.3136887012
+- Quadrigram: dev=186627.1977563379, test=177398.1031457332

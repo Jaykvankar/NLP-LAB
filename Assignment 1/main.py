@@ -161,7 +161,8 @@ def process_corpus(input_filepath: str, output_basepath: str):
 # =============================================================================
 
 if __name__ == "__main__":
-    INPUT_FILE = "raw_data/indiccorp_raw.txt"
-    OUTPUT_BASE = "output/indiccorp_tokenized"
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    INPUT_FILE = os.path.join(BASE_DIR, "raw_data", "indiccorp_raw.txt")
+    OUTPUT_BASE = os.path.join(BASE_DIR, "output", "indiccorp_tokenized")
 
     process_corpus(INPUT_FILE, OUTPUT_BASE)
