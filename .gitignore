@@ -25,3 +25,7 @@ Assignment 1/output/extension_staging/
 Assignment 4/output/train.txt
 Assignment 4/output/development.txt
 Assignment 4/output/test.txt
+
+# Assignment 1 helper scripts (local only)
+Assignment 1/download_data.py
+Assignment 1/extend_corpus.py
