@@ -1,0 +1,59 @@
+{
+  "smoothing": "Laplace (add one)",
+  "alpha": 1,
+  "total_sentences": 1000000,
+  "requirement_met": true,
+  "shortfall": 0,
+  "models": {
+    "unigram": {
+      "development": {
+        "predicted_tokens": 18294,
+        "zero_probability_events": 0,
+        "perplexity": 4088.4347148779398
+      },
+      "test": {
+        "predicted_tokens": 17868,
+        "zero_probability_events": 0,
+        "perplexity": 3546.2359127209093
+      }
+    },
+    "bigram": {
+      "development": {
+        "predicted_tokens": 18294,
+        "zero_probability_events": 0,
+        "perplexity": 14941.965591629973
+      },
+      "test": {
+        "predicted_tokens": 17868,
+        "zero_probability_events": 0,
+        "perplexity": 13066.632835846418
+      }
+    },
+    "trigram": {
+      "development": {
+        "predicted_tokens": 18294,
+        "zero_probability_events": 0,
+        "perplexity": 100450.86803737574
+      },
+      "test": {
+        "predicted_tokens": 17868,
+        "zero_probability_events": 0,
+        "perplexity": 92394.4722398102
+      }
+    },
+    "quadrigram": {
+      "development": {
+        "predicted_tokens": 18294,
+        "zero_probability_events": 0,
+        "perplexity": 231431.19287683722
+      },
+      "test": {
+        "predicted_tokens": 17868,
+        "zero_probability_events": 0,
+        "perplexity": 221597.19266981827
+      }
+    }
+  },
+  "vocabulary_policy": "Original words from training, development, and test; counts from training only; sentence end included.",
+  "prediction_vocabulary_size": 562516
+}

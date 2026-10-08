@@ -1,0 +1,62 @@
+{
+  "total_sentences": 1000000,
+  "required_sentences": 1000000,
+  "requirement_met": true,
+  "shortfall": 0,
+  "training_sentences": 998000,
+  "development_sentences": 1000,
+  "test_sentences": 1000,
+  "split_method": "Original order: training, development, test",
+  "models": {
+    "unigram": {
+      "development": {
+        "predicted_tokens": 18294,
+        "zero_probability_events": 355,
+        "perplexity": "infinity"
+      },
+      "test": {
+        "predicted_tokens": 17868,
+        "zero_probability_events": 338,
+        "perplexity": "infinity"
+      }
+    },
+    "bigram": {
+      "development": {
+        "predicted_tokens": 18294,
+        "zero_probability_events": 4797,
+        "perplexity": "infinity"
+      },
+      "test": {
+        "predicted_tokens": 17868,
+        "zero_probability_events": 4516,
+        "perplexity": "infinity"
+      }
+    },
+    "trigram": {
+      "development": {
+        "predicted_tokens": 18294,
+        "zero_probability_events": 10742,
+        "perplexity": "infinity"
+      },
+      "test": {
+        "predicted_tokens": 17868,
+        "zero_probability_events": 10164,
+        "perplexity": "infinity"
+      }
+    },
+    "quadrigram": {
+      "development": {
+        "predicted_tokens": 18294,
+        "zero_probability_events": 13783,
+        "perplexity": "infinity"
+      },
+      "test": {
+        "predicted_tokens": 17868,
+        "zero_probability_events": 13308,
+        "perplexity": "infinity"
+      }
+    }
+  },
+  "prediction_vocabulary_size": 562516,
+  "vocabulary_policy": "Original words from training, development, and test; counts from training only; sentence end included."
+}

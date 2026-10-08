@@ -9,8 +9,10 @@ raw_data/
 *.zip
 *.pdf
 
-# Results we don't push (keep only small .txt outputs)
+# Results we don't push (keep only small .txt outputs + Assignment 4 json results)
 *.json
+!Assignment 4/output/q1_results.json
+!Assignment 4/output/q2_results.json
 
 # Images / graphviz (regenerate locally, don't push)
 *.png
@@ -21,3 +23,5 @@ raw_data/
 Assignment 1/output/indiccorp_tokenized.txt
 Assignment 1/output/extension_staging/
 Assignment 4/output/train.txt
+Assignment 4/output/development.txt
+Assignment 4/output/test.txt
