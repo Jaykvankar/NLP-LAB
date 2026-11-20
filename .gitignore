@@ -1,6 +1,9 @@
 # Python
 __pycache__/
 *.pyc
+.venv/
+.python/
+.uv-cache/
 
 # Raw / heavy data (regenerate locally, don't push)
 raw_data/
@@ -29,3 +32,11 @@ Assignment 4/output/test.txt
 # Assignment 1 helper scripts (local only)
 Assignment 1/download_data.py
 Assignment 1/extend_corpus.py
+
+# Lab Assignments 7-10: provided datasets and large generated files (local only)
+Lab-Assignment-7/Hindi-POS-Data/
+Lab-Assignment-9/Hindi-POS-Data/
+Lab-Assignment-8/Spell-Correction/
+Lab-Assignment-7/output/probabilities.tsv
+Lab-Assignment-10/outputs/train_sample.csv
+Lab-Assignment-10/outputs/test_sample.csv

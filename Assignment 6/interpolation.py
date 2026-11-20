@@ -9,6 +9,13 @@ from sys import intern
 CORPUS = Path(__file__).resolve().parent.parent / "Assignment 1/output/indiccorp_tokenized.txt"
 OUTPUT = Path(__file__).resolve().parent / "output/interpolation_results.json"
 NAMES = ["Unigram", "Bigram", "Trigram", "Quadrigram"]
+INTERPOLATION_WEIGHTS = {
+    2: [0.40, 0.60],
+    3: [0.20, 0.30, 0.50],
+    4: [0.10, 0.20, 0.30, 0.40],
+}
+GOOD_TURING_CUTOFF = 5
+EPSILON = 1e-15
 
 
 # Read the corpus one sentence at a time as a list of words.
@@ -36,18 +43,16 @@ def prepare_data():
             test.append(words)
     # Keep every word, including words that occur only once.
     vocab = set(frequencies)
-    # Fix the prediction vocabulary for both evaluation sets; counts stay training-only.
-    vocab.update(word for words in development + test for word in words)
-    vocab.add("</s>")
-    vocab.discard("<s>")  # The start marker is context only.
+    # Match the reference vocabulary; held-out words map to <UNK>.
+    vocab.update({"<UNK>", "<s>", "</s>"})
     print(f"Training: {train_size}, Development: {len(development)}, Test: {len(test)}", flush=True)
     return train_size, vocab, development, test
 
 
-# Generate n-word tuples with sentence markers, preserving the original words.
+# Generate n-word tuples with sentence markers and training-vocabulary mapping.
 def ngrams(words, n, vocab):
     # intern shares repeated word strings to save memory on the large corpus.
-    words = [intern(word) for word in words]
+    words = [intern(word) if word in vocab else "<UNK>" for word in words]
     words = ["<s>"] * (n - 1) + words + ["</s>"]
     for i in range(len(words) - n + 1):
         yield tuple(words[i:i + n])
@@ -65,47 +70,56 @@ def train(n, vocab, train_size, data):
     return rows, contexts
 
 
-# Mix uniform, unigram, and higher-order maximum-likelihood probabilities.
-def components(word, history, n, vocab, models):
-    values = [1.0 / len(vocab)]
-    for order in range(1, n + 1):
-        context = history[-(order - 1):] if order > 1 else ()
+# Build the reference's cutoff Good-Turing unigram component once.
+def good_turing_unigram(vocab, model):
+    rows, _ = model
+    counts = rows.get((), {})
+    frequencies = Counter(counts.values())
+    adjusted = {}
+    for count in frequencies:
+        following = frequencies.get(count + 1, 0)
+        if 1 <= count <= GOOD_TURING_CUTOFF and following:
+            value = (count + 1) * following / frequencies[count]
+            adjusted[count] = min(max(value, EPSILON), float(count))
+        else:
+            adjusted[count] = float(count)
+    unseen_types = max(len(vocab) - len(counts), 1)
+    unseen_count = frequencies.get(1, 0) / unseen_types if frequencies.get(1, 0) else EPSILON
+    normalization = sum(adjusted[count] for count in counts.values()) + unseen_types * unseen_count
+
+    def probability(word):
+        count = counts.get(word, 0)
+        return (adjusted[count] if count else unseen_count) / max(normalization, EPSILON)
+
+    return probability
+
+
+# Mix Good-Turing unigrams with MLE higher orders, aligned to the same word.
+def components(word, history, n, vocab, models, unigram_probability):
+    values = [unigram_probability(word)]
+    for order in range(2, n + 1):
+        context = history[-(order - 1):]
         rows, contexts = models[order]
         total = contexts.get(context, 0)
         if total:
             values.append(rows[context].get(word, 0) / total)
         else:
-            values.append(values[-1])  # Use a shorter context when this one is unseen.
+            values.append(0.0)  # An unseen MLE context has probability zero.
     return values
 
 
-# Learn interpolation weights using only the development set.
-def choose_weights(development, n, vocab, models):
-    events = Counter(gram for words in development for gram in ngrams(words, n, vocab))
-    samples = [(components(gram[-1], gram[:-1], n, vocab, models), count)
-               for gram, count in events.items()]
-    weights = [1.0 / (n + 1)] * (n + 1)
-    total = sum(events.values())
-    for _ in range(100):
-        expected = [0.0] * len(weights)
-        for values, count in samples:
-            mixture = sum(weight * value for weight, value in zip(weights, values))
-            for index, value in enumerate(values):
-                expected[index] += count * weights[index] * value / mixture
-        updated = [max(value / total, 1e-8) for value in expected]
-        normalizer = sum(updated)
-        updated = [value / normalizer for value in updated]
-        change = max(abs(a - b) for a, b in zip(weights, updated))
-        weights = updated
-        if change < 1e-7:
-            break
-    return weights
-
-
 def interpolated_probability(n, vocab, models, weights):
+    if len(weights) != n:
+        raise ValueError("Number of interpolation weights must equal order.")
+    if any(not math.isfinite(weight) or weight < 0 for weight in weights):
+        raise ValueError("Interpolation weights must be finite and nonnegative.")
+    if not math.isclose(sum(weights), 1.0, rel_tol=1e-9, abs_tol=1e-9):
+        raise ValueError("Interpolation weights must sum to 1.")
+    unigram_probability = good_turing_unigram(vocab, models[1])
+
     def probability(word, history):
-        return sum(weight * value for weight, value in
-                   zip(weights, components(word, history, n, vocab, models)))
+        values = components(word, history, n, vocab, models, unigram_probability)
+        return max(sum(weight * value for weight, value in zip(weights, values)), EPSILON)
     return probability
 
 
@@ -130,6 +144,7 @@ def evaluate(data, n, vocab, probability):
     return {
         "predicted_tokens": total,
         "zero_probability_events": zero_events,
+        "cross_entropy": exponent / math.log(2) if math.isfinite(exponent) else "Infinity",
         # JSON has no infinity literal, so preserve it as a readable string.
         "perplexity": score if math.isfinite(score) else "Infinity",
     }
@@ -144,8 +159,10 @@ def save_results(train_size, vocab, development, test, models):
     total = train_size + len(development) + len(test)
     results = {
         "smoothing": "Interpolated",
-        "weight_estimation": "EM on development data only",
-        "formula": "P(w|h) = sum(lambda_i * P_i(w|h)), including uniform P_0(w) = 1/V",
+        "weight_estimation": "Fixed weights from the supplied reference code",
+        "good_turing_cutoff": GOOD_TURING_CUTOFF,
+        "epsilon": EPSILON,
+        "formula": "P(w|h) = max(sum(lambda_i * P_i(w|h)), epsilon); Good-Turing unigram, MLE higher orders",
         "total_sentences": total,
         "required_sentences": 1_000_000,
         "requirement_met": total >= 1_000_000,
@@ -156,7 +173,7 @@ def save_results(train_size, vocab, development, test, models):
         "split_method": "Original order: training, development, test",
         "prediction_vocabulary_size": len(vocab),
         "models": models,
-        "vocabulary_policy": "Original words from training, development, and test; counts from training only; sentence end included.",
+        "vocabulary_policy": "Training words plus <UNK>, <s>, </s>; held-out unknown words map to <UNK>.",
         "infinity_encoding": "Infinite results are stored as the string Infinity.",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
@@ -177,19 +194,19 @@ def main():
         models.append(train(n, vocab, train_size, development + test))
         if n == 1:
             continue  # Unigrams are a component; the assignment requests orders 2-4.
-        weights = choose_weights(development, n, vocab, models)
+        weights = INTERPOLATION_WEIGHTS[n]
         probability = interpolated_probability(n, vocab, models, weights)
         dev_result = evaluate(development, n, vocab, probability)
         test_result = evaluate(test, n, vocab, probability)
         results[name.lower()] = {
-            "weights": dict(zip(["uniform"] + [item.lower() for item in NAMES[:n]], weights)),
+            "weights": dict(zip([item.lower() for item in NAMES[:n]], weights)),
             "development": dev_result,
             "test": test_result,
         }
         dev_score = float(dev_result["perplexity"])
         test_score = float(test_result["perplexity"])
         print(f"{name:<12} {dev_score:>24.4f} {test_score:>20.4f}", flush=True)
-        print("  Weights (uniform to highest order): "
+        print("  Weights (unigram to highest order): "
               + ", ".join(f"{weight:.4f}" for weight in weights), flush=True)
 
     save_results(train_size, vocab, development, test, results)

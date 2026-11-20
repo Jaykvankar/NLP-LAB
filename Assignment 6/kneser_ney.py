@@ -1,4 +1,4 @@
-"""Assignment 6: Kneser-Ney smoothing for four n-gram models."""
+"""Assignment 6: Kneser-Ney smoothing for bigram through quadrigram models."""
 import json
 import math
 from collections import Counter, defaultdict
@@ -10,7 +10,7 @@ CORPUS = Path(__file__).resolve().parent.parent / "Assignment 1/output/indiccorp
 OUTPUT = Path(__file__).resolve().parent / "output/kneser_ney_results.json"
 NAMES = ["Unigram", "Bigram", "Trigram", "Quadrigram"]
 DISCOUNT = 0.75
-UNIFORM_WEIGHT = 1e-8
+EPSILON = 1e-15
 
 
 # Read the corpus one sentence at a time as a list of words.
@@ -38,18 +38,16 @@ def prepare_data():
             test.append(words)
     # Keep every word, including words that occur only once.
     vocab = set(frequencies)
-    # Fix the prediction vocabulary for both evaluation sets; counts stay training-only.
-    vocab.update(word for words in development + test for word in words)
-    vocab.add("</s>")
-    vocab.discard("<s>")  # The start marker is context only.
+    # Match the reference vocabulary; held-out words map to <UNK>.
+    vocab.update({"<UNK>", "<s>", "</s>"})
     print(f"Training: {train_size}, Development: {len(development)}, Test: {len(test)}", flush=True)
     return train_size, vocab, development, test
 
 
-# Generate n-word tuples with sentence markers, preserving the original words.
+# Generate n-word tuples with sentence markers and training-vocabulary mapping.
 def ngrams(words, n, vocab):
     # intern shares repeated word strings to save memory on the large corpus.
-    words = [intern(word) for word in words]
+    words = [intern(word) if word in vocab else "<UNK>" for word in words]
     words = ["<s>"] * (n - 1) + words + ["</s>"]
     for i in range(len(words) - n + 1):
         yield tuple(words[i:i + n])
@@ -77,22 +75,26 @@ def train(n, vocab, train_size, data):
 
 # Interpolate discounted counts with lower-order continuation probabilities.
 def kneser_ney_probability(n, vocab, models, continuation):
-    def probability(word, history):
+    def recursive_probability(word, history):
         order = len(history) + 1
         rows, contexts = models[order] if order == n else continuation[order]
         row = rows.get(history, {})
         total = contexts.get(history, 0)
         if order == 1:
-            # Continuation unigrams for n >= 2, ordinary frequencies for n = 1.
-            # Reserve a tiny uniform mass for unseen words in the fixed vocabulary.
-            return ((1 - UNIFORM_WEIGHT) * row.get(word, 0) / total
-                    + UNIFORM_WEIGHT / len(vocab))
-        lower_probability = probability(word, history[1:])
+            count = row.get(word, 0)
+            # Match the reference fallback for words without a predecessor.
+            if not count or not total:
+                return 1.0 / max(len(vocab), 1)
+            return count / total
+        lower_probability = recursive_probability(word, history[1:])
         if not total:
             return lower_probability
         observed = max(row.get(word, 0) - DISCOUNT, 0) / total
         backoff_weight = DISCOUNT * len(row) / total
         return observed + backoff_weight * lower_probability
+
+    def probability(word, history):
+        return max(recursive_probability(word, history), EPSILON)
 
     return probability
 
@@ -118,6 +120,7 @@ def evaluate(data, n, vocab, probability):
     return {
         "predicted_tokens": total,
         "zero_probability_events": zero_events,
+        "cross_entropy": exponent / math.log(2) if math.isfinite(exponent) else "Infinity",
         # JSON has no infinity literal, so preserve it as a readable string.
         "perplexity": score if math.isfinite(score) else "Infinity",
     }
@@ -133,7 +136,8 @@ def save_results(train_size, vocab, development, test, models):
     results = {
         "smoothing": "Kneser-Ney",
         "discount": DISCOUNT,
-        "unigram_uniform_weight": UNIFORM_WEIGHT,
+        "unseen_continuation_fallback": "1 / vocabulary_size, matching the supplied reference",
+        "epsilon": EPSILON,
         "formula": "P(w|h) = max(C(h,w)-D,0)/C(h) + D*N_1+(h,*)/C(h) * P_lower(w|suffix(h))",
         "total_sentences": total,
         "required_sentences": 1_000_000,
@@ -145,7 +149,7 @@ def save_results(train_size, vocab, development, test, models):
         "split_method": "Original order: training, development, test",
         "prediction_vocabulary_size": len(vocab),
         "models": models,
-        "vocabulary_policy": "Original words from training, development, and test; counts from training only; sentence end included.",
+        "vocabulary_policy": "Training words plus <UNK>, <s>, </s>; held-out unknown words map to <UNK>.",
         "infinity_encoding": "Infinite results are stored as the string Infinity.",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
@@ -155,7 +159,7 @@ def save_results(train_size, vocab, development, test, models):
     print(f"Results saved to {OUTPUT}", flush=True)
 
 
-# Train all four models and print this technique's own perplexities.
+# Train the raw orders and evaluate Kneser-Ney for orders 2-4.
 def main():
     train_size, vocab, development, test = prepare_data()
     results = {}
@@ -167,6 +171,8 @@ def main():
         models.append(current)
         if n > 1:
             continuation[n - 1] = lower
+        else:
+            continue  # The reference evaluates Kneser-Ney only for orders 2-4.
         probability = kneser_ney_probability(n, vocab, models, continuation)
         dev_result = evaluate(development, n, vocab, probability)
         test_result = evaluate(test, n, vocab, probability)
